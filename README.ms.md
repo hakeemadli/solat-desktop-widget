@@ -87,3 +87,13 @@ scripts/      penjana ikon
   dan ditanda "waktu MYT" pada bar status.
 - Lokasi IP hanya tepat pada peringkat bandar; untuk sempadan negeri, pilih zon
   secara manual melalui butang zon di penjuru kiri atas.
+
+## Statistik bina
+
+Angka daripada sesi yang menghasilkan v1.0.0 (14 November 2026).
+
+| | |
+|---|---|
+| Masa kerja | 2 jam 53 minit (jam dinding) · 1 jam 51 minit aktif |
+| Token diproses | 17.9 juta — 609 ribu input · 91 ribu output (88 ribu penaakulan) · 17.2 juta bacaan cache |
+| Kos model | $0.00 (tahap percuma) |

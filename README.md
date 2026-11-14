@@ -87,3 +87,13 @@ scripts/      icon generator
   time and marked "waktu MYT" in the status bar.
 - IP location is only city-level; near state borders, pick a zone manually with
   the zone button in the top-left corner.
+
+## Build stats
+
+Figures from the session that produced v1.0.0 (14 November 2026).
+
+| | |
+|---|---|
+| Working time | 2 h 53 min wall-clock · 1 h 51 min model-active |
+| Tokens processed | 17.9 M — 609 k input · 91 k output (88 k reasoning) · 17.2 M cache reads |
+| Model cost | $0.00 (free tier) |
