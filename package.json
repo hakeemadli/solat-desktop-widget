@@ -1,0 +1,58 @@
+{
+  "name": "solat-desktop-widget",
+  "version": "1.0.0",
+  "description": "Widget waktu solat Malaysia di desktop, data daripada JAKIM e-Solat",
+  "main": "src/main/main.js",
+  "author": "Solat Widget contributors",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --devtools",
+    "icons": "bash scripts/make-icons.sh",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.solatwidget.widget",
+    "productName": "Solat Widget",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**/*",
+      "assets/icon-256.png",
+      "assets/icon.ico",
+      "assets/tray-*.png",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        },
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "SolatWidget-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Solat Widget"
+    }
+  }
+}
