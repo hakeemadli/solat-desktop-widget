@@ -1,85 +1,89 @@
 # Solat Widget
 
-Widget waktu solat Malaysia untuk desktop Windows, dibina dengan Electron.
-Data diambil terus daripada **JAKIM e-Solat** dan dipaparkan dalam kad kecil
-yang sentiasa di atas desktop.
+**English** · [Bahasa Melayu](README.ms.md)
 
-## Documentation / Dokumentasi
+<img src="docs/images/widget.png" alt="Solat Widget" width="320">
+
+Malaysian prayer times on your Windows desktop, built with Electron. Times come
+straight from the **JAKIM e-Solat** API and are shown in a small glass card that
+floats above other windows.
+
+![Electron](https://img.shields.io/badge/electron-45-2b2e3a)
+
+## Documentation
 
 - [Architecture reference](docs/ARCHITECTURE.md) — modules, flows, IPC and cache design
 - [User manual](docs/USER-MANUAL.md) — installation, settings, tray, troubleshooting
 - Screenshots: [`docs/images/`](docs/images/)
 
-![Elektron](https://img.shields.io/badge/electron-45-2b2e3a)
+## Features
 
-## Ciri
+- Today's prayer times plus a live countdown to the next prayer
+- Automatic JAKIM zone detection from your network location (60 zones, manual override)
+- Hijri date, Imsak and Syuruk (both can be hidden)
+- Reminder notification before the adhan (0–30 minutes, configurable)
+- Frameless always-on-top card, drag it anywhere, position is remembered
+- Hides to the system tray; the tooltip shows the live countdown
+- Optional "start with Windows"
+- Local cache — the widget keeps working if JAKIM cannot be reached
+- Packages to `.exe` (portable build + installer)
 
-- Waktu solat hari ini + kiraan detik ke solat seterusnya
-- Zon JAKIM dikesan automatik daripada lokasi rangkaian (boleh tukar manual, 60 zon)
-- Tarikh Hijri, Imsak & Syuruk (boleh sembunyi)
-- Notifikasi sebelum azan (0–30 minit, boleh laras)
-- Kad tanpa bingkai, sentiasa di atas, boleh diseret, disimpan posisinya
-- Sembunyi ke system tray, tooltip tray tunjuk kiraan detik
-- Mula bersama Windows (pilihan)
-- Cache setempat — widget tetap berfungsi walaupun JAKIM tidak dapat dihubungi
-- Bina menjadi `.exe` (portable + installer)
-
-## Keperluan
+## Requirements
 
 - Windows 10/11
-- Node.js 18+ (untuk pembangunan)
+- Node.js 18+ (for development)
 
-## Pembangunan
+## Development
 
 ```bash
 npm install
-npm start        # jalankan widget
-npm run dev      # jalankan dengan DevTools
-npm run icons    # jana semula ikon dalam assets/
+npm start        # run the widget
+npm run dev      # run with DevTools
+npm run icons    # regenerate the icons in assets/
 ```
 
-## Bina
+## Build
 
 ```bash
 npm run dist
 ```
 
-Hasil dalam `dist/`:
+Output in `dist/`:
 
-- `SolatWidget-1.0.0-portable.exe` — jalankan terus tanpa pemasangan
-- `Solat Widget Setup 1.0.0.exe` — installer (pilihan folder, shortcut desktop)
+- `SolatWidget-1.0.0-portable.exe` — run it directly, no installation
+- `Solat Widget Setup 1.0.0.exe` — installer (choose a folder, desktop shortcut)
 
-> Build tidak ditandatangani secara digital, jadi Windows SmartScreen mungkin
-> memaparkan amaran "unknown publisher" pada kali pertama.
+> Builds are not code-signed, so Windows SmartScreen may show an
+> "unknown publisher" warning the first time you run them.
 
-## Sumber data
+## Data source
 
-| Perkara | Nilai |
+| Item | Value |
 |---|---|
 | API | `https://www.e-solat.gov.my/index.php?r=esolatApi/takwimsolat` |
-| Parameter | `period=today\|month`, `zone=<kod zon>`, `lang=ms_my` |
-| Zon lalai | Dikesan melalui IP; jika gagal `WLY01` (Kuala Lumpur/Putrajaya) |
-| Cache | `%APPDATA%/solat-desktop-widget/cache/` (TTL 6 jam) |
-| Konfigurasi | `%APPDATA%/solat-desktop-widget/config.json` |
+| Parameters | `period=month` (plus `period=week` in the last two days of a month), `zone=<zone code>`, `lang=ms_my` |
+| Default zone | Detected from your IP; falls back to `WLY01` (Kuala Lumpur/Putrajaya) |
+| Cache | `%APPDATA%/solat-desktop-widget/data/` — 6 h for the month cache, 1 h for the week cache |
+| Config | `%APPDATA%/solat-desktop-widget/config.json` |
 
-API ini tidak didokumenkan secara rasmi. Jika JAKIM menukar format respons,
-widget akan memaparkan data cache terakhir sehingga kod dikemas kini.
+The API is not officially documented. If JAKIM changes the response format, the
+widget keeps showing the last cached data until the code is updated.
 
-## Struktur
+## Project layout
 
 ```
 src/
-  main/       proses utama Electron (tetingkap, tray, penjadual, API)
-  preload/    jambatan IPC yang selamat (contextIsolation)
-  renderer/   UI kad widget (HTML/CSS/JS biasa)
-  shared/     logik solat yang dikongsi main & renderer
-assets/       ikon aplikasi & tray
-scripts/      penjana ikon
+  main/       Electron main process (window, tray, scheduler, API)
+  preload/    secure IPC bridge (contextIsolation)
+  renderer/   widget card UI (plain HTML/CSS/JS)
+  shared/     prayer logic shared by main and renderer
+assets/       app and tray icons
+scripts/      icon generator
 ```
 
-## Nota
+## Notes
 
-- Jika zon waktu peranti bukan UTC+8, masa solat dipaparkan dalam waktu Malaysia
-  dan ditanda "waktu MYT" pada bar status.
-- Lokasi IP hanya tepat pada peringkat bandar; untuk sempadan negeri, pilih zon
-  secara manual melalui butang zon di penjuru kiri atas.
+- If the device timezone is not UTC+8, prayer times are displayed in Malaysian
+  time and marked "waktu MYT" in the status bar.
+- IP location is only city-level; near state borders, pick a zone manually with
+  the zone button in the top-left corner.
