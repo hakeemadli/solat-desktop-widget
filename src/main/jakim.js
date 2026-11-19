@@ -59,7 +59,7 @@ async function request(zone, period) {
       if (!res.ok) throw new Error('HTTP ' + res.status)
       const json = await res.json()
       if (!json || !Array.isArray(json.prayerTime) || !json.prayerTime.length) {
-        throw new Error(json && json.status ? 'JAKIM: ' + json.status : 'Respons JAKIM tidak sah')
+        throw new Error(json && json.status ? 'JAKIM: ' + json.status : 'Invalid JAKIM response')
       }
       return json
     } catch (err) {
@@ -136,7 +136,7 @@ async function getData(zone, options) {
   }
 
   if (!rows.length) {
-    throw new Error(lastError ? lastError.message : 'Tiada data JAKIM untuk zon ' + zone)
+    throw new Error(lastError ? lastError.message : 'No JAKIM data for zone ' + zone)
   }
 
   const days = Core.normalizeDays(rows, asMYT)

@@ -18,7 +18,7 @@
   const PRAYER_KEYS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']
   const DISPLAY_KEYS = ['imsak', 'fajr', 'syuruk', 'dhuhr', 'asr', 'maghrib', 'isha']
 
-  const LABELS = {
+  const LABELS_MS = {
     imsak: 'Imsak',
     fajr: 'Subuh',
     syuruk: 'Syuruk',
@@ -29,12 +29,49 @@
     isha: 'Isyak'
   }
 
-  const WEEKDAYS_MS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu']
-  const MONTHS_MS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis']
-  const HIJRI_MONTHS = [
-    'Muharram', 'Safar', 'Rabiulawal', 'Rabiulakhir', 'Jamadilawal', 'Jamadilakhir',
-    'Rejab', 'Syaaban', 'Ramadan', 'Syawal', 'Zulkaedah', 'Zulhijjah'
-  ]
+  const LABELS_EN = {
+    imsak: 'Imsak',
+    fajr: 'Fajr',
+    syuruk: 'Sunrise',
+    dhuha: 'Dhuha',
+    dhuhr: 'Dhuhr',
+    asr: 'Asr',
+    maghrib: 'Maghrib',
+    isha: 'Isha'
+  }
+
+  const LABELS = LABELS_MS
+
+  const WEEKDAYS = {
+    ms: ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'],
+    en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  }
+
+  const MONTHS_SHORT = {
+    ms: ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'],
+    en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  }
+
+  const HIJRI = {
+    ms: [
+      'Muharram', 'Safar', 'Rabiulawal', 'Rabiulakhir', 'Jamadilawal', 'Jamadilakhir',
+      'Rejab', 'Syaaban', 'Ramadan', 'Syawal', 'Zulkaedah', 'Zulhijjah'
+    ],
+    en: [
+      'Muharram', 'Safar', "Rabi' al-Awwal", "Rabi' al-Thani", 'Jumada al-Ula', 'Jumada al-Thani',
+      'Rajab', "Sha'ban", 'Ramadan', 'Shawwal', "Dhu al-Qi'dah", 'Dhu al-Hijjah'
+    ]
+  }
+
+  const HIJRI_MONTHS = HIJRI.ms
+
+  function normLang(lang) {
+    return lang === 'ms' ? 'ms' : 'en'
+  }
+
+  function labels(lang) {
+    return normLang(lang) === 'ms' ? LABELS_MS : LABELS_EN
+  }
 
   const MYT_OFFSET_MINUTES = 480 // UTC+8
 
@@ -115,7 +152,8 @@
   }
 
   /** Senarai semua waktu solat (5 solat) sebagai event bertarikh. */
-  function prayerEvents(days) {
+  function prayerEvents(days, lang) {
+    const table = labels(lang)
     const out = []
     for (let i = 0; i < days.length; i++) {
       const day = days[i]
@@ -123,7 +161,7 @@
         const key = PRAYER_KEYS[j]
         const at = buildDate(day.dateISO, day.times[key], day.asMYT)
         if (!at) continue
-        out.push({ key: key, label: LABELS[key], dateISO: day.dateISO, at: at })
+        out.push({ key: key, label: table[key], dateISO: day.dateISO, at: at })
       }
     }
     out.sort(function (a, b) { return a.at - b.at })
@@ -131,8 +169,8 @@
   }
 
   /** Cari solat seterusnya berdasarkan jam peranti. */
-  function scheduleFor(days, now) {
-    const events = prayerEvents(days)
+  function scheduleFor(days, now, lang) {
+    const events = prayerEvents(days, lang)
     if (!events.length) return null
     const t = now.getTime()
     let nextIdx = -1
@@ -177,26 +215,30 @@
     if (!t) return '--:--'
     const want12 = opts && opts.hour12
     if (!want12) return pad(t.h) + ':' + pad(t.m)
-    const suffix = t.h < 12 ? 'PG' : 'PTG'
+    const lang = normLang(opts && opts.lang)
+    const suffix = lang === 'ms'
+      ? (t.h < 12 ? 'PG' : 'PTG')
+      : (t.h < 12 ? 'AM' : 'PM')
     let hour = t.h % 12
     if (hour === 0) hour = 12
     return hour + ':' + pad(t.m) + ' ' + suffix
   }
 
-  function formatDateLong(date) {
-    return WEEKDAYS_MS[date.getDay()] + ', ' + date.getDate() + ' ' +
-      MONTHS_MS[date.getMonth()] + ' ' + date.getFullYear()
+  function formatDateLong(date, lang) {
+    const code = normLang(lang)
+    return WEEKDAYS[code][date.getDay()] + ', ' + date.getDate() + ' ' +
+      MONTHS_SHORT[code][date.getMonth()] + ' ' + date.getFullYear()
   }
 
   /** "1448-06-04" -> "4 Jamadilakhir 1448" */
-  function formatHijri(str) {
+  function formatHijri(str, lang) {
     if (!str) return ''
     const p = String(str).split('-')
     if (p.length !== 3) return str
     const y = parseInt(p[0], 10)
     const m = parseInt(p[1], 10)
     const d = parseInt(p[2], 10)
-    const name = HIJRI_MONTHS[(m - 1 + 12) % 12] || ''
+    const name = HIJRI[normLang(lang)][(m - 1 + 12) % 12] || ''
     return d + ' ' + name + ' ' + y
   }
 
@@ -210,6 +252,7 @@
     DISPLAY_KEYS: DISPLAY_KEYS,
     LABELS: LABELS,
     HIJRI_MONTHS: HIJRI_MONTHS,
+    labels: labels,
     MYT_OFFSET_MINUTES: MYT_OFFSET_MINUTES,
     pad: pad,
     toISODate: toISODate,

@@ -1,6 +1,6 @@
 {
   "name": "solat-desktop-widget",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Widget waktu solat Malaysia di desktop, data daripada JAKIM e-Solat",
   "main": "src/main/main.js",
   "author": "Solat Widget contributors",

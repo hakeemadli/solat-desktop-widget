@@ -602,3 +602,17 @@ input[type="search"]::placeholder { color: var(--faint); }
 
 /* keadaan memuat */
 .card.loading .countdown { color: var(--muted); }
+
+/* saiz padat: hanya solat seterusnya */
+body[data-size="compact"] .meta,
+body[data-size="compact"] .times,
+body[data-size="compact"] .foot,
+body[data-size="compact"] .progress,
+body[data-size="compact"] .hero-foot { display: none; }
+
+body[data-size="compact"] .hero { padding-bottom: 11px; }
+
+.zone-list li.empty {
+  cursor: default;
+  color: rgba(233, 246, 240, 0.5);
+}

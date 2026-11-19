@@ -1,6 +1,6 @@
 # Solat Widget — Architecture Reference
 
-Technical reference for **Solat Widget v1.0.0**, an Electron desktop widget that
+Technical reference for **Solat Widget v1.1.0**, an Electron desktop widget that
 shows Malaysian prayer times sourced from the JAKIM e-Solat API.
 
 For the end-user view of the same app, see [`USER-MANUAL.md`](./USER-MANUAL.md).
@@ -27,6 +27,9 @@ Design rules the codebase follows:
    surface exposed by the preload script.
 3. **The widget is a viewer.** All scheduling, caching and retry logic lives in
    the main process; the renderer only ticks the clock and repaints.
+4. **Every user-facing string is translatable.** Text lives in
+   `shared/i18n.js`, never inline in the UI. English is the default; Malay is
+   a full second locale.
 
 ---
 
@@ -42,6 +45,7 @@ Design rules the codebase follows:
 │      ├── zones.js      (static 60-zone table, in-process)       │
 │      ├── store.js      ── %APPDATA%/…/config.json               │
 │      ├── shared/solat-core.js  (pure functions)                 │
+│      ├── shared/i18n.js        (en/ms string tables)            │
 │      └── Tray, BrowserWindow, Notification, timers              │
 │                        │  IPC  ▲                                │
 │                        ▼  │                                     │
@@ -51,7 +55,7 @@ Design rules the codebase follows:
 ├─────────────────────────────────────────────────────────────────┤
 │ Renderer (sandboxed Chromium, no Node)                          │
 │   index.html + styles.css + renderer.js                         │
-│   shared/solat-core.js  (loaded as a plain <script>)             │
+│   shared/solat-core.js + shared/i18n.js  (plain <script>)        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -76,7 +80,8 @@ will not show `Notification` toasts for an unknown AppUserModelID.
 ```
 solat-desktop-widget/
 ├─ package.json            scripts + electron-builder "build" config
-├─ README.md               quick start (Malay)
+├─ README.md               quick start (English, default)
+├─ README.ms.md            quick start (Bahasa Melayu)
 ├─ docs/
 │  ├─ ARCHITECTURE.md      this file
 │  ├─ USER-MANUAL.md       how to use the widget
@@ -97,9 +102,11 @@ solat-desktop-widget/
    ├─ preload/preload.js   contextBridge → window.solat
    ├─ renderer/
    │  ├─ index.html        single card + settings sheet
-   │  ├─ styles.css        all styling (glass card, sheet, rows)
+   │  ├─ styles.css        all styling (glass card, sheet, compact mode)
    │  └─ renderer.js       rendering + 500 ms ticker
-   └─ shared/solat-core.js prayer math used by both sides
+   └─ shared/
+      ├─ solat-core.js     prayer math used by both sides
+      └─ i18n.js           en/ms UI strings + interpolation
 ```
 
 ---
@@ -123,8 +130,9 @@ the renderer). Pure — no I/O, no Electron.
 | `ALL_KEYS` | `imsak, fajr, syuruk, dhuha, dhuhr, asr, maghrib, isha` | Keys exactly as JAKIM returns them |
 | `PRAYER_KEYS` | `fajr, dhuhr, asr, maghrib, isha` | The five that count as prayers |
 | `DISPLAY_KEYS` | `imsak, fajr, syuruk, dhuhr, asr, maghrib, isha` | What the widget lists (`dhuha` is hidden) |
-| `LABELS` | `fajr → Subuh`, `dhuhr → Zohor`, … | Malay display names |
-| `HIJRI_MONTHS` | 12 names | For `formatHijri` |
+| `LABELS` | `fajr → Subuh`, `dhuhr → Zohor`, … | Malay display names (legacy alias) |
+| `labels(lang)` | → `{fajr, dhuhr, …}` | Localised names: `Fajr/Dhuhr/Asr/Isha` in `en` (default), `Subuh/Zohor/Asar/Isyak` in `ms` |
+| `WEEKDAYS` / `MONTHS_SHORT` / `HIJRI` | `{en, ms}` tables | Localised date and Hijri month names |
 | `MYT_OFFSET_MINUTES` | `480` | UTC+8 |
 
 **API**
@@ -136,12 +144,12 @@ the renderer). Pure — no I/O, no Electron.
 | `buildDate(dateISO, time, asMYT)` | → `Date` | `asMYT=false` → device-local wall clock; `asMYT=true` → constructed as UTC and shifted −8 h, i.e. an absolute instant for a Malaysian clock time |
 | `normalizeRow(row, asMYT)` | API row → `{dateISO, hijri, weekday, times{8 keys}, asMYT}` | |
 | `normalizeDays(rows, asMYT)` | array → sorted array | **Dedupes by `dateISO`** (later rows win) — this is how `month` + `week` responses merge |
-| `prayerEvents(days)` | → `[{key,label,dateISO,at}]` sorted | Only the 5 prayers, every day present in the data |
-| `scheduleFor(days, now)` | → schedule object | The core query — see §5.3 |
+| `prayerEvents(days, lang)` | → `[{key,label,dateISO,at}]` sorted | Only the 5 prayers, every day present in the data |
+| `scheduleFor(days, now, lang)` | → schedule object | The core query — see §5.3 |
 | `formatCountdown(ms)` | → `"02:09:32"` | Padded `HH:MM:SS` |
-| `formatTime(timeStr, {hour12})` | → `"18:58"` or `"6:58 PTG"` | `PG` = before noon, `PTG` = after noon |
-| `formatDateLong(date)` | → `"Sabtu, 14 Nov 2026"` | Malay weekday/month names |
-| `formatHijri(str)` | `"1448-06-04"` → `"4 Jamadilakhir 1448"` | |
+| `formatTime(timeStr, {hour12, lang})` | → `"18:58"` or `"6:58 PM"` / `"6:58 PTG"` | 12-hour suffix follows the locale |
+| `formatDateLong(date, lang)` | → `"Thursday, 19 Nov 2026"` / `"Khamis, 19 Nov 2026"` | Localised weekday/month names |
+| `formatHijri(str, lang)` | `"1448-06-04"` → `"4 Jumada al-Thani 1448"` / `"4 Jamadilakhir 1448"` | |
 | `isMalaysiaTime(date)` | → boolean | `date.getTimezoneOffset() === -480` |
 
 ### 4.2 `src/main/zones.js` — the zone table and matching
@@ -187,7 +195,7 @@ User-Agent `SolatWidget/1.0`.
 |---|---|
 | `request(zone, period)` | `net.fetch` (respects the Windows proxy), 3 attempts with 600 ms/1.2 s backoff, `AbortSignal.timeout`. Throws on non-200, non-JSON, or JAKIM's error shape `{"status":"NO_RECORD!"}` (JAKIM 404s a bad zone with HTTP 200, so the body is validated, not the status code) |
 | `getPeriod(zone, period, opts)` | Returns `{payload, cached, stale, error?}`. Cache hit within TTL → no request; on network failure, falls back to any cache and flags `stale` |
-| `getData(zone, {force})` | Orchestrates: always fetches `period=month`; **adds `period=week` when the day of month is ≥ lastDay−2** because JAKIM's month endpoint never returns next month, and the week call is what covers Subuh esok after Isyak. Merges both payloads via `normalizeDays` (dedupe by `dateISO`). Result: `{zone, days, asMYT, stale, fromCache, serverTime, fetchedAt, error}` |
+| `getData(zone, {force})` | Orchestrates: always fetches `period=month`; **adds `period=week` when the day of month is ≥ lastDay−2** because JAKIM's month endpoint never returns next month, and the week call is what covers tomorrow's Fajr after Isha. Merges both payloads via `normalizeDays` (dedupe by `dateISO`). Result: `{zone, days, asMYT, stale, fromCache, serverTime, fetchedAt, error}` |
 
 Cache files live in `<userData>/data/` — deliberately *not* `<userData>/cache`,
 which collides with Chromium's own HTTP-cache directory.
@@ -219,17 +227,21 @@ let lastNotified   // in-memory dedupe, mirrors config.lastNotified
 const isQuitting   // lets win.on('close') hide instead of quitting
 ```
 
-**Window** — fixed 344 × 486, `frame:false`, `transparent:true`,
-`resizable:false`, `skipTaskbar:true`, `hasShadow:false`, `alwaysOnTop` per
-config, `show:false` until `ready-to-show`. Position comes from
-`config.bounds`, validated by `clampToDisplays()` (rejects coordinates more than
-200 px off-screen — this is what saves you after a monitor change), else
-`defaultPosition()` = bottom-right of the primary work area.
+**Window** — one of two fixed sizes from `SIZES`: `normal` = 344 × 486,
+`compact` = 344 × 150. Frameless and transparent (`frame:false`,
+`transparent:true`), `resizable:false`, `skipTaskbar:true`, `hasShadow:false`,
+`alwaysOnTop` per config, `show:false` until `ready-to-show`. Position comes
+from `config.bounds`, validated by `clampToDisplays(bounds, size)` (rejects
+coordinates more than 200 px off-screen — this is what saves you after a
+monitor change), else `defaultPosition(size)` = bottom-right of the primary
+work area. `applyWindowSize(mode)` switches presets at runtime with the same
+clamping logic and persists the new position.
 
 **Tray** — `click` toggles the window; `right-click` pops a menu built fresh by
-`buildTrayMenu()` (next-prayer line, refresh, pin, autostart, notifications,
-quit). `updateTooltip()` runs every 20 s and sets `"<next prayer> HH:MM
-(HH:MM:SS)"`.
+`buildTrayMenu()` (next-prayer line, refresh, compact size, pin, autostart,
+notifications, quit). Every label goes through `t(key)` → `i18n.t(key,
+config.lang)`, so the tray, tooltip and notifications follow the UI language.
+`updateTooltip()` runs every 20 s and sets `"<next prayer> HH:MM (HH:MM:SS)"`.
 
 **Data** — `loadData({zone, force, reason})` sets `state.loading`, calls
 `jakim.getData`, records the result or an error, calls `scheduleTimers()` and
@@ -245,11 +257,13 @@ quit). `updateTooltip()` runs every 20 s and sets `"<next prayer> HH:MM
 restart cannot re-fire the same adhan), then `showAdhanNotification()` shows a
 toast; clicking it focuses the widget.
 
-**Preference application** — `applyPref(patch)` is whitelisted via `PREF_KEYS`
-(`alwaysOnTop, showImsak, showSyuruk, hour12, notifyEnabled, notifyLead,
-autoLaunch`), clamps `notifyLead` to 0–60, and performs side effects:
-`setAlwaysOnTop`, `applyAutoLaunch` (`app.setLoginItemSettings`, packaged builds
-only), and re-scheduling.
+**Preference application** — `applyPref(patch)` is whitelisted through
+`PREF_SCHEMA` (`alwaysOnTop, showImsak, showSyuruk, hour12, notifyEnabled,
+notifyLead, autoLaunch, windowSize, lang`). Booleans are coerced, numbers are
+clamped (`notifyLead` 0–60), and enums are validated (`windowSize` ∈
+`normal|compact`, `lang` ∈ `en|ms`). Side effects: `setAlwaysOnTop`,
+`applyWindowSize`, `applyAutoLaunch` (`app.setLoginItemSettings`, packaged
+builds only), and re-scheduling.
 
 ### 4.7 `src/preload/preload.js` — the IPC bridge
 
@@ -275,23 +289,28 @@ const state = { config, data, error, geoError, loading, zones,
                 isPackaged, version }
 let rowEls    // Map: prayer key → <li>, rebuilt only when rows change
 let sheetOpen, refreshing
-let tickTimer, lastTodayISO
+let tickTimer, lastTodayISO, leadLang
 ```
+
+Two small helpers sit on top: `lang()` resolves `config.lang` to `en`/`ms`
+(default `en`), and `t(key, vars)` delegates to `SolatI18n.t`.
 
 **Render pipeline** (all triggered by `renderAll()`, which is called on boot and
 on every `solat:update`):
 
 ```
 renderAll()
+ ├─ applyStaticText()    data-i18n / data-i18n-title / data-i18n-placeholder
+ ├─ renderSize()         body[data-size] + compact button state
  ├─ renderZoneChip()     header chip (code + tooltip)
  ├─ renderLocation()     detected city, else zone label
  ├─ renderPin()          pressed state on the pin button
  ├─ renderTimes()        rebuilds the prayer <li> list
  ├─ renderHero(sched)    next prayer, time, countdown, progress, "prev → next"
  ├─ renderRowStates()    .past / .next classes on rows
- ├─ renderMeta()         "Sabtu, 14 Nov 2026 · 4 Jamadilakhir 1448"
- ├─ renderStatus()       "Data 16:25 · cache · offline · waktu MYT" + badges
- └─ syncPrefs()          settings sheet checkboxes/select
+ ├─ renderMeta()         "Thursday, 19 Nov 2026 · 9 Jumada al-Thani 1448"
+ ├─ renderStatus()       "Data 16:25 · cache · offline · MYT time" + badges
+ └─ syncPrefs()          settings sheet checkboxes/selects (+ language options)
 ```
 
 `tick()` runs every 500 ms and is the only recurring DOM writer. It recomputes
@@ -302,20 +321,46 @@ row states, and on a date change (tracked via `lastTodayISO`) calls
 `rowEls` is rebuilt by `renderTimes()`; every other render path only mutates
 classes and text, so the list DOM is stable.
 
+Compact mode is a pure presentation switch: `body[data-size="compact"]` hides
+`.meta`, `.times`, `.foot`, `.progress` and `.hero-foot`, while the rest of the
+hero (eyebrow, prayer name, time, countdown) stays. The renderer keeps
+updating the hidden nodes so switching back is instant. `openSheet()` first
+expands a compact card to `normal`, because the settings sheet needs the full
+486 px height.
+
 ### 4.9 `src/renderer/index.html` + `styles.css` — the component map
 
 | Region | Element ids | Styling hook |
 |---|---|---|
 | Card (drag surface) | `card` | `.card` — rounded glass, radial highlights |
-| Header | `zoneChip`, `btnPin`, `btnSettings`, `btnMin`, `btnClose` | `.bar`, `.chip`, `.icon-btn` |
+| Header | `zoneChip`, `btnSize`, `btnPin`, `btnSettings`, `btnMin`, `btnClose` | `.bar`, `.chip`, `.icon-btn` |
 | Next-prayer hero | `nextEyebrow`, `tomorrowBadge`, `staleBadge`, `nextName`, `nextAt`, `countdown`, `progressFill`, `heroFoot` | `.hero` |
 | Date + location | `dateLine`, `locText` | `.meta` |
 | Prayer list | `times` (dynamic `<li class="row">`) | `.row`, `.past`, `.next` |
 | Footer | `status`, `btnRefresh` | `.foot` |
-| Settings overlay | `sheet`, `zoneSearch`, `zoneList`, `btnDetect`, `prefNotify`, `prefLead`, `prefTop`, `prefImsak`, `prefSyuruk`, `prefHour12`, `prefAuto`, `autoHint`, `versionText`, `btnHide`, `btnQuit` | `.sheet`, `.group`, `.toggle` |
+| Settings overlay | `sheet`, `zoneSearch`, `zoneList`, `btnDetect`, `prefNotify`, `prefLead`, `prefTop`, `prefImsak`, `prefSyuruk`, `prefHour12`, `prefCompact`, `prefLang`, `prefAuto`, `autoHint`, `versionText`, `btnHide`, `btnQuit` | `.sheet`, `.group`, `.toggle` |
 
 Drag behaviour is CSS-only: `.card { -webkit-app-region: drag }` with every
-control opted out via `no-drag`.
+control opted out via `no-drag`. Translateable markup carries `data-i18n`,
+`data-i18n-title` or `data-i18n-placeholder`; `body[data-size="compact"]` is
+the compact layout hook.
+
+### 4.10 `src/shared/i18n.js` — UI strings
+
+UMD module (CommonJS in main, `window.SolatI18n` in the renderer), loaded by the
+main process and by a plain `<script>` before `renderer.js`.
+
+| Export | Shape | Notes |
+|---|---|---|
+| `LANGS` | `[{code:'en',label:'English'}, {code:'ms',label:'Bahasa Melayu'}]` | Builds the language picker |
+| `STRINGS` | `{en:{…}, ms:{…}}` | Flat key tables (`card.*`, `settings.*`, `tray.*`, `notify.*`, `error.*`) |
+| `t(key, lang, vars)` | → string | Falls back to `en`, then to the key itself; replaces `{name}` placeholders from `vars` |
+
+Missing translations are visible rather than silent: an unknown key renders as
+its own key name, and a missing Malay string falls back to English. The
+renderer applies tables declaratively through `data-i18n`,
+`data-i18n-title` and `data-i18n-placeholder` attributes, so static markup has
+no hard-coded copy.
 
 ---
 
@@ -353,7 +398,7 @@ sequenceDiagram
 Notes:
 
 - The window is created **before** geolocation so the card appears immediately
-  (in a "Mengambil data…" state) even if the IP lookup is slow.
+  (in a "Fetching data…" state) even if the IP lookup is slow.
 - If `detect()` fails, `zone` falls back to `WLY01` and the reason is surfaced
   to the renderer as `geoError`.
 - `app.on('window-all-closed')` is a no-op: hiding the last window keeps the
@@ -386,18 +431,19 @@ cache cannot shadow fresh week data.
 
 ### 5.3 "Next prayer" computation
 
-`scheduleFor(days, now)`:
+`scheduleFor(days, now, lang)`:
 
-1. `prayerEvents(days)` flattens **every day in the dataset** × 5 prayers into
-   a sorted array of absolute `Date`s.
+1. `prayerEvents(days, lang)` flattens **every day in the dataset** × 5 prayers
+   into a sorted array of absolute `Date`s, labelling each event in the UI
+   language.
 2. The first event with `at > now` is `next`; the one before it is `prev`
-   (so before today's Subuh, `prev` is yesterday's Isyak — that is what makes
+   (so before today's Fajr, `prev` is yesterday's Isha — that is what makes
    the progress bar meaningful at 4 a.m.).
 3. `progress = (now − prev.at) / (next.at − prev.at)`, clamped 0–1.
-4. `isTomorrow` = `next.dateISO !== todayISO` → drives the `ESOK` badge.
+4. `isTomorrow` = `next.dateISO !== todayISO` → drives the `Tomorrow` badge.
 
-Why the whole month instead of just today: after Isyak the next prayer is
-tomorrow's Subuh, which is not in today's row. Before Fajr, "yesterday's Isyak"
+Why the whole month instead of just today: after Isha the next prayer is
+tomorrow's Fajr, which is not in today's row. Before Fajr, "yesterday's Isha"
 is needed for the progress bar. Flattening the month once per tick is ~150
 objects — cheaper than keeping incremental state coherent.
 
@@ -439,7 +485,7 @@ signature optimisation was removed. Updates are rare; correctness is cheap.
 | Midnight | Timer at `00:00:25` → `loadData({force:true})` |
 | Safety net | `setInterval` every 3 h → forced refresh (also covers a laptop waking from sleep) |
 | Renderer fallback | `tick()` notices `toISODate(now) !== lastTodayISO` and calls `requestRefresh()` |
-| Manual | Tray menu, `Muat semula` button |
+| Manual | Tray menu, `Refresh` button |
 
 Three redundant mechanisms on purpose: sleep/hibernate can silently skip any
 single one of them.
@@ -452,7 +498,7 @@ single one of them.
 |---|---|---|---|---|
 | `solat:init` | invoke | — | `{config, data, error, geoError, loading, isPackaged, version, zones[60], platform}` | none |
 | `solat:refresh` | invoke | — | dataset or throws | forced refetch + reschedule |
-| `solat:setZone` | invoke | `code` | dataset or throws `"Zon tidak sah: …"` | config write + refetch |
+| `solat:setZone` | invoke | `code` | dataset or throws `"Invalid zone: …"` | config write + refetch |
 | `solat:detect` | invoke | — | `{ok, zone?, detected?, reason?}` | config write + refetch |
 | `solat:setPref` | invoke | `{key: value}` | updated config or throws | whitelisted patch + side effects |
 | `solat:openExternal` | invoke | `url` | — | `shell.openExternal` if http(s) |
@@ -460,7 +506,7 @@ single one of them.
 | `solat:update` | event (main → renderer) | — | `{config, data, error, geoError, loading, isPackaged, version}` | — |
 
 Validation is at the boundary: `setZone` resolves through `zones.byCode`,
-`setPref` through the `DEFAULTS`/`PREF_KEYS` whitelist. Everything from the
+`setPref` through the `DEFAULTS`/`PREF_SCHEMA` whitelist. Everything from the
 renderer is treated as untrusted input.
 
 ---
@@ -473,9 +519,11 @@ renderer is treated as untrusted input.
 |---|---|---|---|
 | `zone` | `string` | `null` → auto-detect | JAKIM zone code |
 | `detected` | `object` | `null` | `{city, region, country, lat, lon, via, provider, at}` — shown in the UI as "why this zone" |
+| `lang` | `string` | `'en'` | UI locale: `en` (default) or `ms` |
+| `windowSize` | `string` | `'normal'` | `normal` (344 × 486) or `compact` (344 × 150) |
 | `alwaysOnTop` | `boolean` | `true` | Pin |
 | `showImsak` / `showSyuruk` | `boolean` | `true` | Row visibility |
-| `hour12` | `boolean` | `false` | `18:58` vs `6:58 PTG` |
+| `hour12` | `boolean` | `false` | `18:58` vs `6:58 PM` (`6:58 PTG` in Malay) |
 | `notifyEnabled` | `boolean` | `true` | Toasts on/off |
 | `notifyLead` | `number` | `10` | Minutes before azan (0–60, clamped) |
 | `autoLaunch` | `boolean` | `false` | `setLoginItemSettings` (packaged only) |
@@ -505,17 +553,19 @@ under it.
 
 | Situation | Behaviour |
 |---|---|
-| No network at startup | 3 retries → no cache → `state.error`, UI shows "Tiada data" and a red `Cache` badge is absent; tray tooltip shows the error |
+| No network at startup | 3 retries → no cache → `state.error`, UI shows "No data"; tray tooltip shows the error |
 | Network drops later | Cached payload served, `stale: true` → `offline` in the status line |
 | JAKIM returns `NO_RECORD!` (unknown zone) | Treated as an error, not a 200 success |
 | Unknown zone code from the renderer | `solat:setZone` throws before any state changes |
 | After Isyak (late night) | Next prayer resolves to tomorrow's Subuh via `week` data (last 2 days of month) or the existing month data otherwise |
 | Midnight crossing | Triple-redundant refresh (timer / interval / renderer detection) |
-| Device not in UTC+8 | Times interpreted as Malaysian time, `waktu MYT` marker shown |
+| Device not in UTC+8 | Times interpreted as Malaysian time, `MYT time` marker shown |
 | Corrupt or missing `config.json` | Silently reset to defaults |
 | Window saved off-screen (monitor unplugged) | `clampToDisplays` rejects and re-anchors bottom-right |
 | Second launch of the same app | Single-instance lock → existing window is shown, no duplicate widget |
 | App not packaged (dev) | `autoLaunch` toggle is disabled with an explanatory hint |
+| Compact card + settings | `openSheet()` expands the window to `normal` before showing the sheet |
+| Invalid `lang` / `windowSize` from the renderer | Rejected by `PREF_SCHEMA` enum validation; config is unchanged |
 
 ---
 
@@ -526,7 +576,7 @@ npm install          # electron + electron-builder (native postinstall)
 npm start            # run unpackaged
 npm run dev          # run with DevTools
 npm run icons        # regenerate assets/ from ImageMagick primitives
-npm run dist         # dist/SolatWidget-1.0.0-portable.exe + Setup .exe
+npm run dist         # dist/SolatWidget-1.1.0-portable.exe + Setup .exe
 ```
 
 electron-builder details (`"build"` in `package.json`): `appId
@@ -544,7 +594,7 @@ Unsigned builds trigger SmartScreen's "unknown publisher" warning on first run.
 | Term | Meaning |
 |---|---|
 | **JAKIM** | Jabatan Kemajuan Islam Malaysia — publishes the official prayer timetable |
-| **Imsak** | Start of the fasting-abstinence window, ~10 min before Subuh; informational |
+| **Imsak** | Start of the fasting-abstinence window, ~10 min before Fajr; informational |
 | **Syuruk** | Sunrise — ends Fajr; informational, not a prayer |
 | **Dhuha** | Mid-morning voluntary prayer time; present in the API, hidden in the UI |
 | **Hijri** | Islamic calendar date, taken straight from the API response |

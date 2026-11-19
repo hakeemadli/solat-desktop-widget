@@ -19,8 +19,10 @@ floats above other windows.
 ## Features
 
 - Today's prayer times plus a live countdown to the next prayer
+- **Two card sizes** — normal (full timetable) and compact (next prayer only), switchable from the header, settings, or the tray
+- **English by default**, with Bahasa Melayu under *Settings → Display → Language* (card, settings, tray and notifications)
 - Automatic JAKIM zone detection from your network location (60 zones, manual override)
-- Hijri date, Imsak and Syuruk (both can be hidden)
+- Hijri date, Imsak and Sunrise (both can be hidden)
 - Reminder notification before the adhan (0–30 minutes, configurable)
 - Frameless always-on-top card, drag it anywhere, position is remembered
 - Hides to the system tray; the tooltip shows the live countdown
@@ -50,8 +52,8 @@ npm run dist
 
 Output in `dist/`:
 
-- `SolatWidget-1.0.0-portable.exe` — run it directly, no installation
-- `Solat Widget Setup 1.0.0.exe` — installer (choose a folder, desktop shortcut)
+- `SolatWidget-1.1.0-portable.exe` — run it directly, no installation
+- `Solat Widget Setup 1.1.0.exe` — installer (choose a folder, desktop shortcut)
 
 > Builds are not code-signed, so Windows SmartScreen may show an
 > "unknown publisher" warning the first time you run them.
@@ -76,7 +78,7 @@ src/
   main/       Electron main process (window, tray, scheduler, API)
   preload/    secure IPC bridge (contextIsolation)
   renderer/   widget card UI (plain HTML/CSS/JS)
-  shared/     prayer logic shared by main and renderer
+  shared/     prayer logic and UI strings shared by main and renderer
 assets/       app and tray icons
 scripts/      icon generator
 ```
@@ -84,7 +86,7 @@ scripts/      icon generator
 ## Notes
 
 - If the device timezone is not UTC+8, prayer times are displayed in Malaysian
-  time and marked "waktu MYT" in the status bar.
+  time and marked "MYT time" in the status bar.
 - IP location is only city-level; near state borders, pick a zone manually with
   the zone button in the top-left corner.
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ms">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy"
@@ -18,26 +18,31 @@
           </svg>
         </span>
         <span class="brand-name">SOLAT</span>
-        <button class="chip" id="zoneChip" title="Tukar zon">—</button>
+        <button class="chip" id="zoneChip" data-i18n-title="card.zoneTitle">—</button>
       </div>
       <div class="actions">
-        <button class="icon-btn" id="btnPin" title="Sentiasa di atas" aria-pressed="false">
+        <button class="icon-btn" id="btnSize" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 9l4-4 4 4" /><path d="M8 15l4 4 4-4" />
+          </svg>
+        </button>
+        <button class="icon-btn" id="btnPin" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">
             <path d="M9 3h6l-.8 6.2L18 13H6l3.8-3.8L9 3z" /><path d="M12 13v7" stroke-linecap="round" />
           </svg>
         </button>
-        <button class="icon-btn" id="btnSettings" title="Tetapan">
+        <button class="icon-btn" id="btnSettings" data-i18n-title="tip.settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
             <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
             <circle cx="15" cy="7" r="2.2" /><circle cx="9" cy="17" r="2.2" />
           </svg>
         </button>
-        <button class="icon-btn" id="btnMin" title="Sembunyi ke tray">
+        <button class="icon-btn" id="btnMin" data-i18n-title="tip.hide">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
             <path d="M6 12h12" />
           </svg>
         </button>
-        <button class="icon-btn danger" id="btnClose" title="Tutup">
+        <button class="icon-btn danger" id="btnClose" data-i18n-title="tip.close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
             <path d="M7 7l10 10M17 7L7 17" />
           </svg>
@@ -47,17 +52,17 @@
 
     <section class="hero">
       <div class="hero-top">
-        <span class="eyebrow" id="nextEyebrow">Seterusnya</span>
-        <span class="badge hidden" id="tomorrowBadge">Esok</span>
-        <span class="badge hidden" id="staleBadge" title="Data cache digunakan">Cache</span>
+        <span class="eyebrow" id="nextEyebrow" data-i18n="card.next">Next</span>
+        <span class="badge hidden" id="tomorrowBadge" data-i18n="card.tomorrow">Tomorrow</span>
+        <span class="badge hidden" id="staleBadge" data-i18n="card.cache">Cache</span>
       </div>
       <div class="hero-row">
-        <span class="prayer-name" id="nextName">Memuatkan</span>
+        <span class="prayer-name" id="nextName">—</span>
         <span class="prayer-at" id="nextAt">--:--</span>
       </div>
       <div class="countdown" id="countdown">--:--:--</div>
       <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="hero-foot" id="heroFoot">Mengambil data JAKIM…</div>
+      <div class="hero-foot" id="heroFoot">—</div>
     </section>
 
     <section class="meta">
@@ -66,7 +71,7 @@
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
           <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" />
         </svg>
-        <span id="locText">Mengesan lokasi…</span>
+        <span id="locText" data-i18n="card.locationPending">Detecting location…</span>
       </div>
     </section>
 
@@ -78,15 +83,15 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
           <path d="M20 12a8 8 0 1 1-2.4-5.7" /><path d="M20 4v4.5h-4.5" />
         </svg>
-        Muat semula
+        <span id="refreshLabel" data-i18n="card.refresh">Refresh</span>
       </button>
     </footer>
 
     <!-- Panel tetapan -->
     <div class="sheet hidden" id="sheet">
       <div class="sheet-head">
-        <span>Tetapan</span>
-        <button class="icon-btn" id="btnCloseSheet" title="Tutup tetapan">
+        <span data-i18n="settings.title">Settings</span>
+        <button class="icon-btn" id="btnCloseSheet" data-i18n-title="settings.close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
             <path d="M7 7l10 10M17 7L7 17" />
           </svg>
@@ -95,62 +100,63 @@
 
       <div class="sheet-body">
         <section class="group">
-          <h3>Zon JAKIM</h3>
-          <p class="hint" id="detectHint">Zon dipilih secara automatik daripada lokasi rangkaian.</p>
+          <h3 data-i18n="settings.zone">JAKIM zone</h3>
+          <p class="hint" id="detectHint"></p>
           <button class="btn" id="btnDetect">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
               <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" />
             </svg>
-            Kesan lokasi saya
+            <span id="detectLabel" data-i18n="settings.detect">Detect my location</span>
           </button>
-          <input id="zoneSearch" type="search" placeholder="Cari zon, negeri atau daerah…" autocomplete="off" />
+          <input id="zoneSearch" type="search" data-i18n-placeholder="settings.searchPlaceholder" autocomplete="off" />
           <ul class="zone-list" id="zoneList"></ul>
         </section>
 
         <section class="group">
-          <h3>Notifikasi</h3>
+          <h3 data-i18n="settings.notifications">Notifications</h3>
           <label class="toggle">
             <input type="checkbox" id="prefNotify" />
-            <span>Notifikasi sebelum azan</span>
+            <span data-i18n="settings.notifyBefore">Reminder before adhan</span>
           </label>
           <label class="field">
-            <span>Masa awal</span>
-            <select id="prefLead">
-              <option value="0">Tepat waktu</option>
-              <option value="5">5 minit</option>
-              <option value="10">10 minit</option>
-              <option value="15">15 minit</option>
-              <option value="20">20 minit</option>
-              <option value="30">30 minit</option>
-            </select>
+            <span data-i18n="settings.lead">Lead time</span>
+            <select id="prefLead"></select>
           </label>
         </section>
 
         <section class="group">
-          <h3>Paparan</h3>
+          <h3 data-i18n="settings.display">Display</h3>
           <label class="toggle">
             <input type="checkbox" id="prefTop" />
-            <span>Sentiasa di atas</span>
+            <span data-i18n="settings.alwaysOnTop">Always on top</span>
           </label>
           <label class="toggle">
             <input type="checkbox" id="prefImsak" />
-            <span>Tunjuk Imsak</span>
+            <span data-i18n="settings.showImsak">Show Imsak</span>
           </label>
           <label class="toggle">
             <input type="checkbox" id="prefSyuruk" />
-            <span>Tunjuk Syuruk</span>
+            <span data-i18n="settings.showSyuruk">Show Sunrise</span>
           </label>
           <label class="toggle">
             <input type="checkbox" id="prefHour12" />
-            <span>Format 12 jam (PG/PTG)</span>
+            <span data-i18n="settings.hour12">12-hour format (AM/PM)</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="prefCompact" />
+            <span data-i18n="settings.compact">Compact card</span>
+          </label>
+          <label class="field">
+            <span data-i18n="settings.language">Language</span>
+            <select id="prefLang"></select>
           </label>
         </section>
 
         <section class="group">
-          <h3>Sistem</h3>
+          <h3 data-i18n="settings.system">System</h3>
           <label class="toggle">
             <input type="checkbox" id="prefAuto" />
-            <span>Mula bersama Windows</span>
+            <span data-i18n="settings.autoLaunch">Start with Windows</span>
           </label>
           <p class="hint" id="autoHint"></p>
         </section>
@@ -158,8 +164,8 @@
         <div class="sheet-foot">
           <span class="hint" id="versionText"></span>
           <div class="sheet-foot-actions">
-            <button class="btn ghost" id="btnHide">Ke tray</button>
-            <button class="btn danger-solid" id="btnQuit">Keluar</button>
+            <button class="btn ghost" id="btnHide" data-i18n="settings.toTray">To tray</button>
+            <button class="btn danger-solid" id="btnQuit" data-i18n="settings.quit">Quit</button>
           </div>
         </div>
       </div>
@@ -167,6 +173,7 @@
 
   </div>
 
+  <script src="../shared/i18n.js"></script>
   <script src="../shared/solat-core.js"></script>
   <script src="renderer.js"></script>
 </body>

@@ -7,10 +7,12 @@ const { app } = require('electron')
 const DEFAULTS = {
   zone: null,
   detected: null, // { city, region, country, lat, lon, via }
+  lang: 'en', // 'en' | 'ms'
   alwaysOnTop: true,
   showImsak: true,
   showSyuruk: true,
   hour12: false,
+  windowSize: 'normal', // 'normal' | 'compact'
   notifyEnabled: true,
   notifyLead: 10, // minit sebelum azan
   autoLaunch: false,

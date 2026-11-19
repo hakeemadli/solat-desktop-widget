@@ -1,6 +1,7 @@
 'use strict'
 
 const Core = window.SolatCore
+const I18n = window.SolatI18n
 const api = window.solat
 
 const CHECK_SVG =
@@ -23,6 +24,7 @@ let rowEls = new Map()
 let lastTodayISO = null
 let sheetOpen = false
 let refreshing = false
+let leadLang = null
 
 function el(id) {
   return document.getElementById(id)
@@ -31,6 +33,14 @@ function el(id) {
 function cfg(key, fallback) {
   const value = state.config ? state.config[key] : undefined
   return value === undefined || value === null ? fallback : value
+}
+
+function lang() {
+  return state.config && state.config.lang === 'ms' ? 'ms' : 'en'
+}
+
+function t(key, vars) {
+  return I18n.t(key, lang(), vars)
 }
 
 /* ------------------------------------------------------------------ *
@@ -56,13 +66,13 @@ function timeOf(event) {
 
 function eventLabel(event) {
   const raw = timeOf(event)
-  if (raw) return Core.formatTime(raw, { hour12: cfg('hour12', false) })
+  if (raw) return Core.formatTime(raw, { hour12: cfg('hour12', false), lang: lang() })
   return Core.pad(event.at.getHours()) + ':' + Core.pad(event.at.getMinutes())
 }
 
 function currentSchedule() {
   if (!state.data) return null
-  return Core.scheduleFor(state.data.days, new Date())
+  return Core.scheduleFor(state.data.days, new Date(), lang())
 }
 
 function zoneInfo() {
@@ -83,10 +93,32 @@ function visibleKeys() {
  * Render
  * ------------------------------------------------------------------ */
 
+function applyStaticText() {
+  const code = lang()
+  if (document.documentElement.lang !== code) document.documentElement.lang = code
+
+  document.querySelectorAll('[data-i18n]').forEach(function (node) {
+    node.textContent = t(node.getAttribute('data-i18n'))
+  })
+  document.querySelectorAll('[data-i18n-title]').forEach(function (node) {
+    node.title = t(node.getAttribute('data-i18n-title'))
+  })
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function (node) {
+    node.setAttribute('placeholder', t(node.getAttribute('data-i18n-placeholder')))
+  })
+}
+
+function renderSize() {
+  const compact = cfg('windowSize', 'normal') === 'compact'
+  document.body.dataset.size = compact ? 'compact' : 'normal'
+  el('btnSize').setAttribute('aria-pressed', compact ? 'true' : 'false')
+  el('btnSize').title = t(compact ? 'tip.sizeNormal' : 'tip.sizeCompact')
+}
+
 function renderZoneChip() {
   const zone = zoneInfo()
   el('zoneChip').textContent = zone ? zone.code : '—'
-  el('zoneChip').title = zone ? zone.code + ' — ' + zone.label : 'Pilih zon'
+  el('zoneChip').title = zone ? zone.code + ' — ' + zone.label : t('card.zoneTitle')
 }
 
 function renderLocation() {
@@ -98,7 +130,7 @@ function renderLocation() {
   } else if (zone) {
     text = zone.label
   } else {
-    text = 'Lokasi belum ditetapkan'
+    text = t('card.locationUnknown')
   }
   el('locText').textContent = text
 }
@@ -111,11 +143,11 @@ function renderHero(sched) {
   const footEl = el('heroFoot')
 
   if (!sched || !sched.next) {
-    nameEl.textContent = state.error ? 'Tiada data' : 'Memuatkan'
+    nameEl.textContent = state.error ? t('card.noData') : t('card.loading')
     atEl.textContent = '--:--'
     countdownEl.textContent = '--:--:--'
     fillEl.style.width = '0%'
-    footEl.textContent = state.error || 'Mengambil data JAKIM…'
+    footEl.textContent = state.error || t('card.fetching')
     el('tomorrowBadge').classList.add('hidden')
     return
   }
@@ -137,6 +169,7 @@ function renderHero(sched) {
 function renderTimes() {
   const list = el('times')
   const row = todayRow()
+  const table = Core.labels(lang())
   rowEls = new Map()
   list.innerHTML = ''
 
@@ -151,14 +184,14 @@ function renderTimes() {
 
     const name = document.createElement('span')
     name.className = 'name'
-    name.textContent = Core.LABELS[key]
+    name.textContent = table[key]
 
     const leader = document.createElement('span')
     leader.className = 'leader'
 
     const time = document.createElement('span')
     time.className = 'time'
-    time.textContent = Core.formatTime(row.times[key], { hour12: cfg('hour12', false) })
+    time.textContent = Core.formatTime(row.times[key], { hour12: cfg('hour12', false), lang: lang() })
 
     const tick = document.createElement('span')
     tick.className = 'tick'
@@ -191,15 +224,15 @@ function renderRowStates(sched) {
 function renderMeta() {
   const now = new Date()
   const row = todayRow()
-  let line = Core.formatDateLong(now)
-  if (row && row.hijri) line += ' · ' + Core.formatHijri(row.hijri)
+  let line = Core.formatDateLong(now, lang())
+  if (row && row.hijri) line += ' · ' + Core.formatHijri(row.hijri, lang())
   el('dateLine').textContent = line
 }
 
 function renderStatus() {
   const parts = []
   if (state.loading) {
-    parts.push('Mengambil data JAKIM…')
+    parts.push(t('card.fetching'))
   } else if (state.error) {
     parts.push(state.error)
   } else if (state.data) {
@@ -208,27 +241,30 @@ function renderStatus() {
     if (server) {
       stamp = server[1]
     } else if (state.data.fetchedAt) {
-      const t = new Date(state.data.fetchedAt)
-      stamp = Core.pad(t.getHours()) + ':' + Core.pad(t.getMinutes())
+      const time = new Date(state.data.fetchedAt)
+      stamp = Core.pad(time.getHours()) + ':' + Core.pad(time.getMinutes())
     }
-    parts.push(stamp ? 'Data ' + stamp : 'Data JAKIM')
-    if (state.data.fromCache) parts.push('cache')
-    if (state.data.stale) parts.push('offline')
-    if (state.data.asMYT) parts.push('waktu MYT')
+    parts.push(stamp ? t('card.statusData', { time: stamp }) : 'Data JAKIM')
+    if (state.data.fromCache) parts.push(t('card.statusCache'))
+    if (state.data.stale) parts.push(t('card.statusOffline'))
+    if (state.data.asMYT) parts.push(t('card.statusMyt'))
   } else {
-    parts.push('Tiada data')
+    parts.push(t('card.noData'))
   }
   el('status').textContent = parts.join(' · ')
   el('staleBadge').classList.toggle('hidden', !(state.data && state.data.stale))
 }
 
 function renderPin() {
-  el('btnPin').setAttribute('aria-pressed', cfg('alwaysOnTop', true) ? 'true' : 'false')
-  el('btnPin').title = cfg('alwaysOnTop', true) ? 'Sentiasa di atas: aktif' : 'Sentiasa di atas: mati'
+  const pinned = cfg('alwaysOnTop', true)
+  el('btnPin').setAttribute('aria-pressed', pinned ? 'true' : 'false')
+  el('btnPin').title = t(pinned ? 'tip.pinOn' : 'tip.pinOff')
 }
 
 function renderAll() {
+  applyStaticText()
   el('card').classList.toggle('loading', !state.data)
+  renderSize()
   renderZoneChip()
   renderLocation()
   renderPin()
@@ -275,16 +311,46 @@ function startTicker() {
  * Tetapan
  * ------------------------------------------------------------------ */
 
+function renderLeadOptions() {
+  const select = el('prefLead')
+  if (!select) return
+  if (leadLang === lang() && select.options.length) return
+  select.innerHTML = ''
+  const values = [0, 5, 10, 15, 20, 30]
+  values.forEach(function (value) {
+    const option = document.createElement('option')
+    option.value = String(value)
+    option.textContent = value === 0 ? t('settings.onTime') : t('settings.minutes', { n: value })
+    select.appendChild(option)
+  })
+  leadLang = lang()
+}
+
+function renderLangOptions() {
+  const select = el('prefLang')
+  if (!select || select.options.length) return
+  I18n.LANGS.forEach(function (entry) {
+    const option = document.createElement('option')
+    option.value = entry.code
+    option.textContent = entry.label
+    select.appendChild(option)
+  })
+}
+
 function syncPrefs() {
   const setChecked = function (id, value) {
     const node = el(id)
     if (node) node.checked = !!value
   }
+  renderLeadOptions()
+  renderLangOptions()
+
   setChecked('prefNotify', cfg('notifyEnabled', true))
   setChecked('prefTop', cfg('alwaysOnTop', true))
   setChecked('prefImsak', cfg('showImsak', true))
   setChecked('prefSyuruk', cfg('showSyuruk', true))
   setChecked('prefHour12', cfg('hour12', false))
+  setChecked('prefCompact', cfg('windowSize', 'normal') === 'compact')
   setChecked('prefAuto', cfg('autoLaunch', false))
 
   const lead = el('prefLead')
@@ -293,13 +359,14 @@ function syncPrefs() {
     if (lead.value !== value) lead.value = value
   }
 
+  const langSelect = el('prefLang')
+  if (langSelect) langSelect.value = lang()
+
   const auto = el('prefAuto')
   const hint = el('autoHint')
   if (auto) auto.disabled = !state.isPackaged
   if (hint) {
-    hint.textContent = state.isPackaged
-      ? 'Widget akan mula tersembunyi di tray apabila Windows dihidupkan.'
-      : 'Pilihan ini hanya aktif pada versi yang dibina (.exe).'
+    hint.textContent = t(state.isPackaged ? 'settings.autoHintPackaged' : 'settings.autoHintDev')
   }
 
   el('versionText').textContent = 'v' + (state.version || '1.0.0')
@@ -317,9 +384,8 @@ function renderZoneList(filter) {
   list.innerHTML = ''
   if (!items.length) {
     const li = document.createElement('li')
-    li.textContent = 'Tiada zon sepadan.'
-    li.style.cursor = 'default'
-    li.style.color = 'rgba(233,246,240,0.5)'
+    li.className = 'empty'
+    li.textContent = t('settings.noZone')
     list.appendChild(li)
     return
   }
@@ -349,19 +415,23 @@ function renderDetectHint() {
   const zone = zoneInfo()
   const hint = el('detectHint')
   if (detected && detected.city) {
-    hint.textContent = 'Dikesan: ' + detected.city +
+    const where = detected.city +
       (detected.region ? ', ' + detected.region : '') +
       (zone ? ' → ' + zone.code : '')
+    hint.textContent = t('settings.detected', { where: where })
   } else if (state.geoError === 'outside-malaysia') {
-    hint.textContent = 'Lokasi rangkaian bukan di Malaysia. Pilih zon secara manual.'
+    hint.textContent = t('settings.detectOutside')
   } else if (state.geoError) {
-    hint.textContent = 'Gagal mengesan lokasi. Pilih zon secara manual.'
+    hint.textContent = t('settings.detectFailed')
   } else {
-    hint.textContent = 'Zon dipilih secara automatik daripada lokasi rangkaian.'
+    hint.textContent = t('settings.detectHint')
   }
 }
 
-function openSheet() {
+async function openSheet() {
+  if (cfg('windowSize', 'normal') === 'compact') {
+    await setPref({ windowSize: 'normal' })
+  }
   sheetOpen = true
   el('sheet').classList.remove('hidden')
   renderZoneList('')
@@ -389,9 +459,9 @@ async function chooseZone(code) {
 
 async function detectLocation() {
   const btn = el('btnDetect')
-  const original = btn.innerHTML
+  const label = el('detectLabel')
   btn.disabled = true
-  btn.textContent = 'Mengesan…'
+  label.textContent = t('settings.detecting')
   try {
     const result = await api.detect()
     if (!result || !result.ok) {
@@ -408,7 +478,7 @@ async function detectLocation() {
     renderDetectHint()
   } finally {
     btn.disabled = false
-    btn.innerHTML = original
+    label.textContent = t('settings.detect')
   }
 }
 
@@ -455,6 +525,11 @@ function bindUi() {
     if (sheetOpen) closeSheet()
     else openSheet()
   })
+  el('btnSize').addEventListener('click', function () {
+    const next = cfg('windowSize', 'normal') === 'compact' ? 'normal' : 'compact'
+    if (next === 'compact' && sheetOpen) closeSheet()
+    setPref({ windowSize: next })
+  })
   el('btnPin').addEventListener('click', function () {
     setPref({ alwaysOnTop: !cfg('alwaysOnTop', true) })
   })
@@ -485,6 +560,13 @@ function bindUi() {
   })
   el('prefHour12').addEventListener('change', function (e) {
     setPref({ hour12: e.target.checked })
+  })
+  el('prefCompact').addEventListener('change', function (e) {
+    closeSheet()
+    setPref({ windowSize: e.target.checked ? 'compact' : 'normal' })
+  })
+  el('prefLang').addEventListener('change', function (e) {
+    setPref({ lang: e.target.value })
   })
   el('prefAuto').addEventListener('change', function (e) {
     setPref({ autoLaunch: e.target.checked })
@@ -526,7 +608,7 @@ async function boot() {
     state.isPackaged = !!init.isPackaged
     state.version = init.version || ''
   } catch (err) {
-    state.error = 'Gagal memulakan widget'
+    state.error = I18n.t('error.boot', 'en')
     console.error(err)
   }
 

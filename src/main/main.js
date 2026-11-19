@@ -11,11 +11,26 @@ const jakim = require('./jakim')
 const zones = require('./zones')
 const geolocate = require('./geolocate')
 const Core = require('../shared/solat-core')
+const i18n = require('../shared/i18n')
 
 const APP_ID = 'com.solatwidget.widget'
-const WINDOW_WIDTH = 344
-const WINDOW_HEIGHT = 486
+const SIZES = {
+  normal: { width: 344, height: 486 },
+  compact: { width: 344, height: 150 }
+}
 const DEFAULT_ZONE = 'WLY01'
+
+function t(key, vars) {
+  return i18n.t(key, cfg().lang, vars)
+}
+
+function uiLang() {
+  return cfg().lang === 'ms' ? 'ms' : 'en'
+}
+
+function sizeOf(mode) {
+  return SIZES[mode] || SIZES.normal
+}
 
 const isDev = !app.isPackaged
 const startHidden = process.argv.indexOf('--hidden') !== -1
@@ -50,13 +65,14 @@ function userDataPath() {
  * Window
  * ------------------------------------------------------------------ */
 
-function clampToDisplays(bounds) {
+function clampToDisplays(bounds, size) {
   if (!bounds || !Number.isFinite(bounds.x) || !Number.isFinite(bounds.y)) return null
-  const probe = { x: bounds.x, y: bounds.y, width: WINDOW_WIDTH, height: WINDOW_HEIGHT }
+  const box = size || sizeOf(cfg().windowSize)
+  const probe = { x: bounds.x, y: bounds.y, width: box.width, height: box.height }
   const display = screen.getDisplayMatching(probe)
   const area = display.workArea
   const margin = 24
-  const minX = area.x - WINDOW_WIDTH + 80
+  const minX = area.x - box.width + 80
   const maxX = area.x + area.width - 80
   const minY = area.y - 40
   const maxY = area.y + area.height - 80
@@ -68,22 +84,24 @@ function clampToDisplays(bounds) {
   return { x: x, y: y, margin: margin }
 }
 
-function defaultPosition() {
+function defaultPosition(size) {
+  const box = size || sizeOf(cfg().windowSize)
   const display = screen.getPrimaryDisplay()
   const area = display.workArea
   return {
-    x: area.x + area.width - WINDOW_WIDTH - 28,
-    y: area.y + area.height - WINDOW_HEIGHT - 28
+    x: area.x + area.width - box.width - 28,
+    y: area.y + area.height - box.height - 28
   }
 }
 
 function createWindow() {
-  const saved = clampToDisplays(cfg().bounds)
-  const pos = saved || defaultPosition()
+  const size = sizeOf(cfg().windowSize)
+  const saved = clampToDisplays(cfg().bounds, size)
+  const pos = saved || defaultPosition(size)
 
   win = new BrowserWindow({
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+    width: size.width,
+    height: size.height,
     x: pos.x,
     y: pos.y,
     frame: false,
@@ -154,6 +172,18 @@ function toggleWindow() {
   else showWindow()
 }
 
+function applyWindowSize(mode) {
+  if (!win) return
+  const size = sizeOf(mode)
+  const b = win.getBounds()
+  const probe = { x: b.x, y: b.y, width: size.width, height: size.height }
+  const area = screen.getDisplayMatching(probe).workArea
+  const x = Math.min(Math.max(b.x, area.x - size.width + 80), area.x + area.width - 80)
+  const y = Math.min(Math.max(b.y, area.y - 40), area.y + area.height - 80)
+  win.setBounds({ x: x, y: y, width: size.width, height: size.height })
+  store.set('bounds', { x: x, y: y })
+}
+
 /* ------------------------------------------------------------------ *
  * Tray
  * ------------------------------------------------------------------ */
@@ -162,16 +192,18 @@ function eventTimeLabel(event) {
   if (!event) return '--:--'
   if (state.data) {
     const row = state.data.days.find(function (d) { return d.dateISO === event.dateISO })
-    if (row && row.times[event.key]) return Core.formatTime(row.times[event.key], { hour12: cfg().hour12 })
+    if (row && row.times[event.key]) {
+      return Core.formatTime(row.times[event.key], { hour12: cfg().hour12, lang: uiLang() })
+    }
   }
   const d = event.at
   return Core.pad(d.getHours()) + ':' + Core.pad(d.getMinutes())
 }
 
 function nextPrayerSummary() {
-  if (!state.data) return 'Memuatkan…'
-  const s = Core.scheduleFor(state.data.days, new Date())
-  if (!s || !s.next) return 'Tiada data'
+  if (!state.data) return t('tray.loading')
+  const s = Core.scheduleFor(state.data.days, new Date(), uiLang())
+  if (!s || !s.next) return t('tray.noData')
   return s.next.label + ' ' + eventTimeLabel(s.next) + ' (' + Core.formatCountdown(s.remainingMs) + ')'
 }
 
@@ -183,7 +215,7 @@ function updateTooltip() {
     const z = zones.byCode(state.data.zone)
     if (z) text += '\n' + z.code + ' · ' + z.state
   } else if (state.error) {
-    text += '\n' + state.error
+    text += '\n' + errorText()
   }
   tray.setToolTip(text)
 }
@@ -191,34 +223,41 @@ function updateTooltip() {
 function buildTrayMenu() {
   const c = cfg()
   const zone = zones.byCode(c.zone)
+  const isCompact = c.windowSize === 'compact'
   const items = [
-    { label: state.data ? nextPrayerSummary() : 'Memuatkan…', enabled: false },
-    { label: zone ? 'Zon: ' + zone.code + ' · ' + zone.state : 'Zon: belum dipilih', enabled: false },
+    { label: state.data ? nextPrayerSummary() : t('tray.loading'), enabled: false },
+    { label: zone ? t('tray.zone', { code: zone.code, state: zone.state }) : t('tray.zoneUnset'), enabled: false },
     { type: 'separator' },
-    { label: 'Tunjuk Widget', click: showWindow },
-    { label: 'Muat Semula Data', click: function () { loadData({ force: true, reason: 'tray' }) } },
+    { label: t('tray.show'), click: showWindow },
+    { label: t('tray.refresh'), click: function () { loadData({ force: true, reason: 'tray' }) } },
     { type: 'separator' },
     {
-      label: 'Sentiasa di Atas',
+      label: t('settings.compact'),
+      type: 'checkbox',
+      checked: isCompact,
+      click: function (item) { applyPref({ windowSize: item.checked ? 'compact' : 'normal' }) }
+    },
+    {
+      label: t('tray.alwaysOnTop'),
       type: 'checkbox',
       checked: c.alwaysOnTop !== false,
       click: function (item) { applyPref({ alwaysOnTop: item.checked }) }
     },
     {
-      label: 'Mula Bersama Windows',
+      label: t('tray.autoLaunch'),
       type: 'checkbox',
       checked: !!c.autoLaunch,
       enabled: app.isPackaged,
       click: function (item) { applyPref({ autoLaunch: item.checked }) }
     },
     {
-      label: 'Notifikasi Azan',
+      label: t('tray.notifications'),
       type: 'checkbox',
       checked: c.notifyEnabled !== false,
       click: function (item) { applyPref({ notifyEnabled: item.checked }) }
     },
     { type: 'separator' },
-    { label: 'Keluar', click: function () { quitApp() } }
+    { label: t('tray.quit'), click: function () { quitApp() } }
   ]
   return Menu.buildFromTemplate(items)
 }
@@ -246,7 +285,7 @@ function payload() {
   return {
     config: cfg(),
     data: state.data,
-    error: state.error,
+    error: errorText(),
     geoError: state.geoError,
     loading: state.loading,
     isPackaged: app.isPackaged,
@@ -259,8 +298,13 @@ function broadcast() {
   updateTooltip()
 }
 
-function setError(message) {
-  state.error = message || null
+function setError(code, vars) {
+  state.error = code ? { code: code, vars: vars || null } : null
+}
+
+function errorText() {
+  if (!state.error) return null
+  return i18n.t(state.error.code, uiLang(), state.error.vars)
 }
 
 async function loadData(options) {
@@ -271,9 +315,10 @@ async function loadData(options) {
   try {
     const data = await jakim.getData(zone, { force: !!opts.force })
     state.data = data
-    setError(data.error && data.stale ? 'Data cache digunakan (' + data.error + ')' : null)
+    if (data.error && data.stale) setError('error.cache', { msg: data.error })
+    else setError(null)
   } catch (err) {
-    setError(err.message || 'Gagal mendapatkan data JAKIM')
+    setError('error.fetch')
     console.error('[main] gagal memuat data:', err.message)
   } finally {
     state.loading = false
@@ -317,7 +362,9 @@ function showAdhanNotification(event, lead) {
   if (!Notification.isSupported()) return
   const zone = zones.byCode(cfg().zone)
   const isNow = !lead
-  const title = isNow ? 'Masuk waktu ' + event.label : event.label + ' ' + lead + ' minit lagi'
+  const title = isNow
+    ? t('notify.titleNow', { prayer: event.label })
+    : t('notify.titleLead', { prayer: event.label, n: lead })
   const body = event.label + ' ' + eventTimeLabel(event) +
     (zone ? ' · ' + zone.code + ' · ' + zone.state : '')
 
@@ -337,7 +384,7 @@ function scheduleTimers() {
   const config = cfg()
   const now = Date.now()
   const leadMs = Math.max(0, Number(config.notifyLead) || 0) * 60000
-  const events = Core.prayerEvents(state.data.days)
+  const events = Core.prayerEvents(state.data.days, uiLang())
 
   if (config.notifyEnabled !== false) {
     for (let i = 0; i < events.length; i++) {
@@ -390,24 +437,30 @@ function applyAutoLaunch(enabled) {
   }
 }
 
-const PREF_KEYS = {
-  alwaysOnTop: 'boolean',
-  showImsak: 'boolean',
-  showSyuruk: 'boolean',
-  hour12: 'boolean',
-  notifyEnabled: 'boolean',
-  notifyLead: 'number',
-  autoLaunch: 'boolean'
+const PREF_SCHEMA = {
+  alwaysOnTop: { type: 'boolean' },
+  showImsak: { type: 'boolean' },
+  showSyuruk: { type: 'boolean' },
+  hour12: { type: 'boolean' },
+  notifyEnabled: { type: 'boolean' },
+  notifyLead: { type: 'number', min: 0, max: 60 },
+  autoLaunch: { type: 'boolean' },
+  windowSize: { type: 'enum', values: ['normal', 'compact'] },
+  lang: { type: 'enum', values: ['en', 'ms'] }
 }
 
 function applyPref(input) {
   const patch = {}
   Object.keys(input || {}).forEach(function (key) {
-    if (!Object.prototype.hasOwnProperty.call(PREF_KEYS, key)) return
+    const spec = PREF_SCHEMA[key]
+    if (!spec) return
     let value = input[key]
-    if (PREF_KEYS[key] === 'boolean') value = !!value
-    if (PREF_KEYS[key] === 'number') {
-      value = Math.max(0, Math.min(60, Math.round(Number(value) || 0)))
+    if (spec.type === 'boolean') value = !!value
+    if (spec.type === 'number') {
+      value = Math.max(spec.min, Math.min(spec.max, Math.round(Number(value) || 0)))
+    }
+    if (spec.type === 'enum') {
+      if (spec.values.indexOf(value) === -1) return
     }
     patch[key] = value
   })
@@ -417,6 +470,9 @@ function applyPref(input) {
 
   if (Object.prototype.hasOwnProperty.call(patch, 'alwaysOnTop') && win) {
     win.setAlwaysOnTop(!!patch.alwaysOnTop)
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'windowSize')) {
+    applyWindowSize(patch.windowSize)
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'autoLaunch')) {
     applyAutoLaunch(patch.autoLaunch)
@@ -448,9 +504,9 @@ function registerIpc() {
 
   ipcMain.handle('solat:setZone', function (_e, code) {
     const zone = zones.byCode(code)
-    if (!zone) throw new Error('Zon tidak sah: ' + code)
+    if (!zone) throw new Error(t('error.zone', { code: code }))
     store.patch({ zone: zone.code })
-    state.error = null
+    setError(null)
     return loadData({ zone: zone.code, force: false, reason: 'zone' })
   })
 

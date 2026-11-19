@@ -19,6 +19,8 @@ yang sentiasa di atas desktop.
 ## Ciri
 
 - Waktu solat hari ini + kiraan detik ke solat seterusnya
+- **Dua saiz kad** — biasa (jadual penuh) dan padat (solat seterusnya sahaja), boleh tukar dari header, tetapan atau tray
+- **Bahasa Inggeris secara lalai**, Bahasa Melayu di *Tetapan → Paparan → Bahasa* (kad, tetapan, tray dan notifikasi)
 - Zon JAKIM dikesan automatik daripada lokasi rangkaian (boleh tukar manual, 60 zon)
 - Tarikh Hijri, Imsak & Syuruk (boleh sembunyi)
 - Notifikasi sebelum azan (0–30 minit, boleh laras)
@@ -50,8 +52,8 @@ npm run dist
 
 Hasil dalam `dist/`:
 
-- `SolatWidget-1.0.0-portable.exe` — jalankan terus tanpa pemasangan
-- `Solat Widget Setup 1.0.0.exe` — installer (pilihan folder, shortcut desktop)
+- `SolatWidget-1.1.0-portable.exe` — jalankan terus tanpa pemasangan
+- `Solat Widget Setup 1.1.0.exe` — installer (pilihan folder, shortcut desktop)
 
 > Build tidak ditandatangani secara digital, jadi Windows SmartScreen mungkin
 > memaparkan amaran "unknown publisher" pada kali pertama.
@@ -76,7 +78,7 @@ src/
   main/       proses utama Electron (tetingkap, tray, penjadual, API)
   preload/    jambatan IPC yang selamat (contextIsolation)
   renderer/   UI kad widget (HTML/CSS/JS biasa)
-  shared/     logik solat yang dikongsi main & renderer
+  shared/     logik solat & teks UI yang dikongsi main dan renderer
 assets/       ikon aplikasi & tray
 scripts/      penjana ikon
 ```
