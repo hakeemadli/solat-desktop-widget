@@ -9,6 +9,22 @@ straight from the **JAKIM e-Solat** API and are shown in a small glass card that
 floats above other windows.
 
 ![Electron](https://img.shields.io/badge/electron-45-2b2e3a)
+![GitHub release](https://img.shields.io/github/v/release/hakeemadli/solat-desktop-widget)
+![Downloads](https://img.shields.io/github/downloads/hakeemadli/solat-desktop-widget/total)
+
+## Download
+
+Get the latest build from
+**[GitHub Releases](https://github.com/hakeemadli/solat-desktop-widget/releases/latest)**:
+
+| File | Use it when |
+|---|---|
+| `SolatWidget-1.1.0-portable.exe` | You want it now, no installation. Just double-click it. |
+| `Solat.Widget.Setup.1.1.0.exe` | You want a Start-menu/desktop shortcut and "Start with Windows" to work properly. |
+
+Windows 10/11 (x64). The builds are not code-signed, so SmartScreen may warn on
+first run — click **More info → Run anyway**. SHA-256 checksums are attached to
+the release.
 
 ## Documentation
 

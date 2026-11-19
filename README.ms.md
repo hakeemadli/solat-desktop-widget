@@ -9,6 +9,22 @@ Data diambil terus daripada **JAKIM e-Solat** dan dipaparkan dalam kad kecil
 yang sentiasa di atas desktop.
 
 ![Elektron](https://img.shields.io/badge/electron-45-2b2e3a)
+![GitHub release](https://img.shields.io/github/v/release/hakeemadli/solat-desktop-widget)
+![Downloads](https://img.shields.io/github/downloads/hakeemadli/solat-desktop-widget/total)
+
+## Muat turun
+
+Dapatkan binaan terkini daripada
+**[GitHub Releases](https://github.com/hakeemadli/solat-desktop-widget/releases/latest)**:
+
+| Fail | Bila hendak guna |
+|---|---|
+| `SolatWidget-1.1.0-portable.exe` | Jalankan terus tanpa pemasangan. |
+| `Solat.Widget.Setup.1.1.0.exe` | Untuk shortcut Start menu/desktop dan "Mula bersama Windows". |
+
+Windows 10/11 (x64). Binaan tidak ditandatangani, jadi SmartScreen mungkin
+menunjukkan amaran pada kali pertama — klik **More info → Run anyway**.
+Checksum SHA-256 dilampirkan pada release.
 
 ## Dokumentasi
 
